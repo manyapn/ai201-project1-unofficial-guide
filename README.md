@@ -58,8 +58,8 @@ Cornell CS degree planning for students in the A&S (BA) and Engineering (BS) tra
 | # | Question | Expected answer | System response (summarized) | Retrieval quality | Response accuracy |
 |---|----------|-----------------|------------------------------|-------------------|-------------------|
 | 1 | What grades do I need to affiliate with CS as an Engineering student? | C (not C-) in CS 2110 and CS 2800, average at least 2.50, C or higher in MATH 1920, critical math average at least 2.30 | "Minimum grade of C (not C-) in all completed CS, MATH, and CS-designated Critical Math Courses at the time the affiliation application is reviewed" | Relevant | Partially accurate (correct on grade floor, missed the specific 2.50 average and MATH 1920 detail) |
-| 2 | What do students say about the workload in CS 3110? | Heavy problem sets, challenging final project, steep OCaml learning curve | "Workload is high but manageable; time-consuming assignments; assignment every two weeks with a final project; some find it overwhelming but staff is supportive" | Relevant | Accurate |
-| 3 | Is CS 4820 required for both the BA and BS? | Yes, CS 4820 is a core requirement for both tracks | "Yes for the BS (explicitly listed in retrieved chunk); model was uncertain on BA because the BA header chunk was retrieved instead of the core requirements chunk" | Partially relevant | Partially accurate (confirmed BS, uncertain on BA) |
+| 2 | What do students say about the workload in CS 3110? | Heavy problem sets, challenging final project, steep OCaml learning curve | Cites per professor+semester: "relatively high (SP21 with Clarkson), manageable (SP22 with Foster), weekly projects time-consuming (SP25 with Mohan)" | Relevant | Accurate |
+| 3 | Is CS 4820 required for both the BA and BS? | Yes, CS 4820 is a core requirement for both tracks | "Yes, required for both BA and BS" with sources citing cs_ba_requirements.txt and cs_bs_requirements.txt | Relevant | Accurate |
 | 4 | What are students' biggest complaints about CS 4820? | Fast-paced lectures, hard problem sets, assumes strong math background | "Disorganized class, delayed and inconsistent grading, large time commitment (up to 10 hrs/week), content is just plain hard" | Relevant | Accurate |
 | 5 | What counts as a practicum or project course for the CS major? | CS 4121, CS 4321, CS 4411, CS 4621, CS 4701, CS 3152, CS 4152; one required for both BA and BS | "CS 3152, CS 4121, CS 4152, CS 4321, CS 4411, CS 4621; select one; CS 4090/4997/4998/4999 not allowed" | Relevant | Accurate |
 
@@ -70,13 +70,13 @@ Cornell CS degree planning for students in the A&S (BA) and Engineering (BS) tra
 
 ## Failure Case Analysis
 
-**Question that failed:** "Is CS 4820 required for both the BA and BS?"
+**Question that failed (initial version):** "Is CS 4820 required for both the BA and BS?"
 
-**What the system returned:** The model confirmed CS 4820 is required for the BS but said it couldn't confirm the BA requirement. It correctly retrieved a BS requirement chunk listing CS 4820 explicitly, but the BA requirement chunk it got was the document header (first 400 characters of cs_ba_requirements.txt), which just shows the degree name and credit total - not the core course list.
+**What the system returned:** The model confirmed CS 4820 is required for the BS but couldn't confirm the BA. It correctly retrieved a BS requirement chunk listing CS 4820 explicitly, but the BA requirement chunk was the document header (first 400 characters of cs_ba_requirements.txt) - just the degree name and credit total, not the core course list.
 
-**Root cause (tied to a specific pipeline stage):** Chunking and retrieval together. The BA requirement document is chunked in 400-character windows starting from the top. The first chunk is the header. The chunk that actually lists CS 4820 as required is several windows deep in the document. The semantic similarity between "Is CS 4820 required for the BA?" and the header chunk was high enough to surface it over the specific chunk that lists 4820. The BS requirement chunk happened to fall in a position where 4820 appeared closer to the start, so it was retrieved.
+**Root cause (tied to a specific pipeline stage):** Chunking and retrieval together. The BA requirement document is chunked in 400-character windows starting from the top. The first chunk is the header. The chunk listing CS 4820 as required is several windows deep. Semantic similarity between "Is CS 4820 required for the BA?" and the header chunk was high enough to surface it over the specific chunk that names 4820.
 
-**What you would change to fix it:** Add a sliding-window search within requirement doc chunks after the initial retrieval - if the query mentions a course number, scan all requirement chunks for that number explicitly using a keyword match, then pass those chunks to the LLM alongside the semantic results.
+**Fix applied:** Added a `where_document={"$contains": "CS 4820"}` keyword filter pass on requirement docs in `smart_retrieve()`. This guarantees that chunks literally containing "CS 4820" are retrieved regardless of semantic ranking. The system now correctly confirms both BA and BS.
 
 ---
 
