@@ -85,17 +85,7 @@ _REQUIREMENT_KEYWORDS = {
     "degree", "gpa", "average", "credits", "credit"
 }
 
-_COURSE_NICKNAMES = [
-    (re.compile(r'\bintro(?:duction)?\s+to\s+a\.?i\.?\b', re.IGNORECASE), "3700"),
-    (re.compile(r'\bfoundations?\s+of\s+a\.?i\.?\b', re.IGNORECASE), "3700"),
-    (re.compile(r'\bintro(?:duction)?\s+to\s+(?:machine\s+learning|m\.?l\.?)\b', re.IGNORECASE), "3780"),
-    (re.compile(r'\bfunctional\s+programming\b', re.IGNORECASE), "3110"),
-    (re.compile(r'\bdata\s+structures\b', re.IGNORECASE), "2110"),
-    (re.compile(r'\balgorithms\b', re.IGNORECASE), "4820"),
-    (re.compile(r'\boperating\s+systems\b', re.IGNORECASE), "4410"),
-    (re.compile(r'\bdeep\s+learning\b', re.IGNORECASE), "5787"),
-    (re.compile(r'\bnatural\s+language\s+processing\b|\bnlp\b', re.IGNORECASE), "4740"),
-]
+_COURSE_INFER_THRESHOLD = 0.1
 
 
 def _is_requirement_query(query):
@@ -103,19 +93,28 @@ def _is_requirement_query(query):
     return any(kw in q for kw in _REQUIREMENT_KEYWORDS)
 
 
-def _extract_course_numbers(query):
-    explicit = re.findall(r'\bCS\s*(\d{4})\b', query, re.IGNORECASE)
-    inferred = []
-    for pattern, num in _COURSE_NICKNAMES:
-        if pattern.search(query) and num not in explicit and num not in inferred:
-            inferred.append(num)
-    return explicit, inferred
+def _infer_courses_from_query(query, k=3, collection_name=COLLECTION_NAME, chroma_path=CHROMA_PATH):
+    """Semantically match query against course descriptions to find relevant course numbers."""
+    hits = retrieve(query, k=k, collection_name=collection_name,
+                    chroma_path=chroma_path, filters={"doc_type": "course"})
+    seen_nums = []
+    for hit in hits:
+        if (1 - hit["distance"]) >= _COURSE_INFER_THRESHOLD:
+            num = hit["metadata"].get("course_number", "").replace("CS ", "")
+            if num and num not in seen_nums:
+                seen_nums.append(num)
+    return seen_nums
 
 
 def smart_retrieve(query, k=7, collection_name=COLLECTION_NAME, chroma_path=CHROMA_PATH):
-    cs_matches, inferred = _extract_course_numbers(query)
+    cs_matches = re.findall(r'\bCS\s*(\d{4})\b', query, re.IGNORECASE)
     math_matches = re.findall(r'\bMATH\s*(\d{4})\b', query, re.IGNORECASE)
-    all_cs = cs_matches + inferred
+
+    # When no explicit course numbers and not a requirement query, infer from course descriptions
+    if not cs_matches and not _is_requirement_query(query):
+        cs_matches = _infer_courses_from_query(
+            query, collection_name=collection_name, chroma_path=chroma_path
+        )
 
     seen = set()
     chunks = []
@@ -131,7 +130,7 @@ def smart_retrieve(query, k=7, collection_name=COLLECTION_NAME, chroma_path=CHRO
         _add(retrieve(query, k=k, collection_name=collection_name,
                       chroma_path=chroma_path,
                       filters={"doc_type": "requirement"}))
-        for num in all_cs:
+        for num in cs_matches:
             _add(retrieve(query, k=3, collection_name=collection_name,
                           chroma_path=chroma_path,
                           filters={"doc_type": "requirement"},
@@ -141,36 +140,24 @@ def smart_retrieve(query, k=7, collection_name=COLLECTION_NAME, chroma_path=CHRO
                           chroma_path=chroma_path,
                           filters={"doc_type": "requirement"},
                           where_document={"$contains": f"MATH {num}"}))
-    elif len(all_cs) > 1:
+    elif len(cs_matches) > 1:
         # multi-course comparison: broad semantic + per-course docs for each course
         _add(retrieve(query, k=5, collection_name=collection_name,
                       chroma_path=chroma_path))
-        for num in all_cs:
+        for num in cs_matches:
             course_num = f"CS {num}"
-            course_num_nospace = f"CS{num}"
             _add(retrieve(query, k=4, collection_name=collection_name,
                           chroma_path=chroma_path,
                           filters={"course_number": course_num}))
-            # RMP reviews store course as "CS3110" (no space) in review text
-            _add(retrieve(query, k=3, collection_name=collection_name,
-                          chroma_path=chroma_path,
-                          where_document={"$contains": course_num_nospace}))
             _add(retrieve(query, k=2, collection_name=collection_name,
                           chroma_path=chroma_path,
                           filters={"doc_type": "requirement"},
                           where_document={"$contains": course_num}))
-    elif all_cs:
-        course_num = f"CS {all_cs[0]}"
-        course_num_nospace = f"CS{all_cs[0]}"
-        # course-specific query: filter to that course's docs (CUReviews have course_number field)
+    elif cs_matches:
+        course_num = f"CS {cs_matches[0]}"
         _add(retrieve(query, k=k, collection_name=collection_name,
                       chroma_path=chroma_path,
                       filters={"course_number": course_num}))
-        # RMP reviews store course as "CS3110" (no space) in review text
-        _add(retrieve(query, k=4, collection_name=collection_name,
-                      chroma_path=chroma_path,
-                      where_document={"$contains": course_num_nospace}))
-        # keyword-search requirement docs for this course number
         _add(retrieve(query, k=4, collection_name=collection_name,
                       chroma_path=chroma_path,
                       filters={"doc_type": "requirement"},

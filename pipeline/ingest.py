@@ -1,4 +1,5 @@
 import os
+import re
 import requests
 from datetime import datetime
 
@@ -153,6 +154,9 @@ def fetch_rmp_professors():
                 if not comment:
                     continue
                 course_class = rating.get("class", "")
+                # Normalize "CS3110" -> "CS 3110" so filters on course_number work
+                m = re.match(r'^([A-Za-z]+)(\d+)$', course_class.strip())
+                course_number = f"{m.group(1).upper()} {m.group(2)}" if m else ""
                 docs.append({
                     "text": f"Review of Professor {professor_name} for {course_class}: {comment}",
                     "metadata": {
@@ -161,6 +165,7 @@ def fetch_rmp_professors():
                         "professor_name": professor_name,
                         "department": node.get("department"),
                         "class": course_class,
+                        "course_number": course_number,
                         "clarity_rating": rating.get("clarityRating"),
                         "difficulty_rating": rating.get("difficultyRating"),
                         "helpful_rating": rating.get("helpfulRating"),
