@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from groq import Groq
 from dotenv import load_dotenv
 
@@ -10,13 +11,66 @@ SYSTEM_PROMPT = (
     "You are a knowledgeable Cornell University CS advisor. "
     "Answer the student's question using only the context provided below. "
     "If the context does not contain enough information, say so honestly. "
-    "Be concise and specific. Do not invent facts."
+    "Be concise and specific. Do not invent facts. "
+    "When discussing course experiences from student reviews, always cite the "
+    "professor and semester for each claim (e.g. 'FA23 with Nate Foster: ...'). "
+    "Different professors and semesters can have very different experiences, "
+    "so always attribute claims to their source. "
+    "At the end of your answer, include a 'Sources:' line listing the source "
+    "labels (e.g. CUReviews, RateMyProfessors, Cornell Classes API, "
+    "cs_ba_requirements.txt) for the chunks you drew from."
 )
+
+
+def _infer_semester(date_str):
+    if not date_str:
+        return None
+    try:
+        clean = date_str.replace("T", " ").split(".")[0].strip()
+        dt = datetime.strptime(clean, "%Y-%m-%d %H:%M:%S")
+        suffix = str(dt.year)[2:]
+        return f"FA{suffix}" if dt.month > 5 else f"SP{suffix}"
+    except Exception:
+        return None
+
+
+def _format_chunk(i, chunk):
+    text = chunk["text"]
+    meta = chunk.get("metadata", {})
+    doc_type = meta.get("doc_type", "")
+    source = meta.get("source", "")
+
+    source_label = {
+        "cureviews": "CUReviews",
+        "ratemyprofessors": "RateMyProfessors",
+        "cornell_classes_api": "Cornell Classes API",
+    }.get(source, source)
+
+    parts = [f"Source: {source_label}"] if source_label else []
+
+    if doc_type == "review":
+        prof = meta.get("professor") or meta.get("professor_name") or ""
+        sem = _infer_semester(meta.get("date", ""))
+        if sem:
+            parts.append(sem)
+        if prof:
+            parts.append(f"Prof: {prof}")
+
+    elif doc_type == "course":
+        sem = meta.get("semester", "")
+        instructors = meta.get("instructors", "")
+        if sem:
+            parts.append(sem)
+        if instructors:
+            parts.append(f"Instructors: {instructors}")
+
+    label = f"({', '.join(parts)}) " if parts else ""
+    return f"[{i+1}] {label}{text}"
 
 
 def generate(query, chunks):
     context_block = "\n\n".join(
-        f"[{i+1}] {c['text']}" for i, c in enumerate(chunks)
+        _format_chunk(i, c) for i, c in enumerate(chunks)
     ) if chunks else "No context available."
 
     user_message = f"Context:\n{context_block}\n\nQuestion: {query}"

@@ -53,7 +53,8 @@ def embed_and_store(chunks, collection_name=COLLECTION_NAME, chroma_path=CHROMA_
     return len(chunks)
 
 
-def retrieve(query, k=5, collection_name=COLLECTION_NAME, chroma_path=CHROMA_PATH, filters=None):
+def retrieve(query, k=5, collection_name=COLLECTION_NAME, chroma_path=CHROMA_PATH,
+             filters=None, where_document=None):
     model = _get_model()
     client = chromadb.PersistentClient(path=chroma_path)
     collection = client.get_or_create_collection(collection_name)
@@ -61,11 +62,13 @@ def retrieve(query, k=5, collection_name=COLLECTION_NAME, chroma_path=CHROMA_PAT
     raw = model.encode([query])
     query_embedding = raw.tolist()[0] if hasattr(raw, "tolist") else raw[0]
 
-    results = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=k,
-        where=filters
-    )
+    kwargs = {"query_embeddings": [query_embedding], "n_results": k}
+    if filters:
+        kwargs["where"] = filters
+    if where_document:
+        kwargs["where_document"] = where_document
+
+    results = collection.query(**kwargs)
 
     return [
         {
@@ -100,12 +103,17 @@ def smart_retrieve(query, k=7, collection_name=COLLECTION_NAME, chroma_path=CHRO
 
     if match:
         course_num = f"CS {match.group(1)}"
+        # semantic search restricted to this course's docs
         _add(retrieve(query, k=k, collection_name=collection_name,
                       chroma_path=chroma_path,
                       filters={"course_number": course_num}))
+        # keyword search in requirement docs for the course number
+        # catches chunks like "CS 4820 - Introduction to Analysis of Algorithms"
+        # that semantic search misses because it returns the document header instead
         _add(retrieve(query, k=4, collection_name=collection_name,
                       chroma_path=chroma_path,
-                      filters={"doc_type": "requirement"}))
+                      filters={"doc_type": "requirement"},
+                      where_document={"$contains": course_num}))
     else:
         _add(retrieve(query, k=k, collection_name=collection_name,
                       chroma_path=chroma_path))
