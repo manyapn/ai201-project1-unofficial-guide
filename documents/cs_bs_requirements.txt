@@ -1,0 +1,73 @@
+CS BS Degree Requirements - College of Engineering (Bowers CIS)
+2025-2026 Edition
+Minimum Credits for Degree: 123
+
+Math Courses
+Course One - select one of:
+  MATH 1910 - Calculus for Engineers
+  AP, IB, GCE Advanced Placement and Advanced Standing Credit
+  Engineering Math Advanced Standing Exam (CASE)
+
+Course Two:
+  MATH 1920 - Multivariable Calculus for Engineers [4 credits]
+
+Course Three:
+  MATH 2940 - Linear Algebra for Engineers [4 credits]
+
+Introductory Computing - select one of:
+  CS 1110 - Introduction to Computing: A Design and Development Perspective
+  CS 1112 - Introduction to Computing: An Engineering and Science Perspective
+  AP Computer Science, IB Computer Science, or CS CASE Exam Credits
+
+Select one of:
+  CS 2110 - Object-Oriented Programming and Data Structures
+  CS 2112 - Object-Oriented Design and Data Structures - Honors
+
+Computer Science Core
+  CS 2800 - Mathematical Foundations of Computing (or CS 2802 Honors) [3-4 credits]
+  CS 3110 - Data Structures and Functional Programming [4 credits]
+  CS 3410 - Computer System Organization and Programming (or CS 3420 Embedded Systems) [4 credits]
+  CS 3700 - Foundations of AI Reasoning and Decision-Making (or CS 3780 Intro to ML) [3-4 credits]
+  CS 4410 - Operating Systems (or CS 4414 Systems Programming) [3-4 credits]
+  CS 4820 - Introduction to Analysis of Algorithms [4 credits]
+
+Computer Science Electives
+  Complete two 4000+ level CS electives.
+  CS 3700 or CS 3780 allowed if not used for CS core.
+  CS 4090, CS 4997, CS 4998, CS 4999 are NOT allowed.
+
+Computer Science Practicum or Project Course - select one of:
+  CS 3152 - Introduction to Computer Game Architecture
+  CS 4121 - Practicum in Compilers
+  CS 4152 - Advanced Topics in Computer Game Architecture
+  CS 4321 - Practicum in Database Systems
+  CS 4411 - Practicum in Operating Systems
+  CS 4621 - Computer Graphics Practicum
+  CS 4701 - Practicum in Artificial Intelligence
+  CS 4740 - Natural Language Processing
+  CS 5150 - Software Engineering
+  CS 5152 - Advanced Topics in Computer Game Architecture
+  CS 5412 - Cloud Computing
+  CS 5414 - Distributed Computing Principles
+  CS 5625 - Interactive Computer Graphics
+  CS 5643 - Physically Based Animation for Computer Graphics
+
+Technical Electives
+  Complete three 3000+ level technical electives with a qualifying prerequisite as defined by the CS Undergraduate website.
+  At most one 2000+ level course allowed.
+  CS 4090, CS 4997, CS 4998 are NOT allowed.
+
+External Specialization
+  Complete three courses from outside the CS department.
+  Courses must be 3000-level or greater and at least 3 credits each.
+  Courses can be cross-listed with CS but must be taken as the non-CS listing.
+  NOT accepted: courses parented by CS department, LING 4474, INFO 3300, INFO 4300, INFO 5300.
+
+Elective Requirement
+  One 3+ credit course or combination equaling 3+ credits.
+  NOT allowed: PE courses, courses numbered 10xx or below, AP/IB, ROTC courses below 3000 level.
+
+Notes
+  All electives must be at least 3 credits, except the CS project course (at least 2 credits).
+  Engineering students must also complete the College of Engineering core requirements.
+  Affiliation with the CS major requires a separate application - see affiliation_eng.txt.

@@ -1,0 +1,29 @@
+CS Affiliation Requirements - College of Engineering (Bowers CIS)
+
+EN students must meet all of the following requirements to be eligible to apply to affiliate with the CS major:
+
+General Requirement
+A minimum grade of "C" (not C-) in all completed CS, MATH, and CS-designated Critical Math Courses at the time the affiliation application is reviewed, even if those courses are not required for affiliation.
+
+Computer Science Requirements
+These courses must be completed with a minimum grade of "C" (not "C-") in each and the average of the two grades must be no lower than a 2.50:
+- CS 2110 - Object-Oriented Programming and Data Structures (or CS 2112, the Honors version)
+- CS 2800 - Mathematical Foundations of Computing (or CS 2802, the Honors version)
+
+Math Requirements
+The following math course must be completed with a grade of "C" (not "C-") or higher:
+- MATH 1920 - Multivariable Calculus for Engineers
+  Also accepted: a score of "S" on the MATH 1920 CASE exam, or approved external transfer credit.
+
+Students who fulfill the MATH 1920 requirement with CASE exam or external transfer credit must complete one additional course from the list below, also with a minimum grade of "C" (not "C-"):
+
+CS-Designated Critical Math Coursework:
+- BTRY/STSCI/ILRST 3080 - Probability Models and Inference
+- CS 4850 - Probability, Vectors, and Matrices in Computing
+- ECE 3100 - Introduction to Probability and Inference for Random Signals and Systems
+- ECON 3130 - Probability and Statistics
+- ENGRD 2700 - Engineering Probability and Statistics: Modeling and Data Science
+- MATH 2940 - Linear Algebra for Engineers
+- MATH 4710 - Basic Probability
+
+The average of the student's grades in MATH 1920 and all other completed Critical Math courses from the list above must be at least a 2.30.
