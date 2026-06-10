@@ -19,3 +19,8 @@ chroma/
 # macOS
 .DS_Store
 
+# IDE and tooling
+.vscode/
+.gradio/
+.claude/
+
