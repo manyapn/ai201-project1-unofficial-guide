@@ -80,41 +80,103 @@ def retrieve(query, k=5, collection_name=COLLECTION_NAME, chroma_path=CHROMA_PAT
     ]
 
 
-def smart_retrieve(query, k=7, collection_name=COLLECTION_NAME, chroma_path=CHROMA_PATH):
-    """Retrieval that detects course numbers and mixes in requirement docs.
+_REQUIREMENT_KEYWORDS = {
+    "affiliate", "affiliation", "declare", "requirement", "required",
+    "degree", "gpa", "average", "credits", "credit"
+}
 
-    When the query names a specific course (e.g. 'CS 3110'), it filters
-    retrieval to that course's documents so reviews from other courses don't
-    crowd out the answer. It always appends a requirement-doc pass so
-    policy questions (required courses, practicum lists) surface correctly.
-    Results are deduplicated by text so the same chunk from multiple semesters
-    only appears once.
-    """
-    match = re.search(r'\bCS\s*(\d{4})\b', query, re.IGNORECASE)
+_COURSE_NICKNAMES = [
+    (re.compile(r'\bintro(?:duction)?\s+to\s+a\.?i\.?\b', re.IGNORECASE), "3700"),
+    (re.compile(r'\bfoundations?\s+of\s+a\.?i\.?\b', re.IGNORECASE), "3700"),
+    (re.compile(r'\bintro(?:duction)?\s+to\s+(?:machine\s+learning|m\.?l\.?)\b', re.IGNORECASE), "3780"),
+    (re.compile(r'\bfunctional\s+programming\b', re.IGNORECASE), "3110"),
+    (re.compile(r'\bdata\s+structures\b', re.IGNORECASE), "2110"),
+    (re.compile(r'\balgorithms\b', re.IGNORECASE), "4820"),
+    (re.compile(r'\boperating\s+systems\b', re.IGNORECASE), "4410"),
+    (re.compile(r'\bdeep\s+learning\b', re.IGNORECASE), "5787"),
+    (re.compile(r'\bnatural\s+language\s+processing\b|\bnlp\b', re.IGNORECASE), "4740"),
+]
+
+
+def _is_requirement_query(query):
+    q = query.lower()
+    return any(kw in q for kw in _REQUIREMENT_KEYWORDS)
+
+
+def _extract_course_numbers(query):
+    explicit = re.findall(r'\bCS\s*(\d{4})\b', query, re.IGNORECASE)
+    inferred = []
+    for pattern, num in _COURSE_NICKNAMES:
+        if pattern.search(query) and num not in explicit and num not in inferred:
+            inferred.append(num)
+    return explicit, inferred
+
+
+def smart_retrieve(query, k=7, collection_name=COLLECTION_NAME, chroma_path=CHROMA_PATH):
+    cs_matches, inferred = _extract_course_numbers(query)
+    math_matches = re.findall(r'\bMATH\s*(\d{4})\b', query, re.IGNORECASE)
+    all_cs = cs_matches + inferred
 
     seen = set()
     chunks = []
 
-    def _add(new_chunks):
+    def _add(new_chunks, threshold=-0.5):
         for c in new_chunks:
-            if c["text"] not in seen:
+            if c["text"] not in seen and (1 - c["distance"]) >= threshold:
                 seen.add(c["text"])
                 chunks.append(c)
 
-    if match:
-        course_num = f"CS {match.group(1)}"
-        # semantic search restricted to this course's docs
+    if _is_requirement_query(query):
+        # requirement query: only requirement docs, keyword-search for each course number
+        _add(retrieve(query, k=k, collection_name=collection_name,
+                      chroma_path=chroma_path,
+                      filters={"doc_type": "requirement"}))
+        for num in all_cs:
+            _add(retrieve(query, k=3, collection_name=collection_name,
+                          chroma_path=chroma_path,
+                          filters={"doc_type": "requirement"},
+                          where_document={"$contains": f"CS {num}"}))
+        for num in math_matches:
+            _add(retrieve(query, k=3, collection_name=collection_name,
+                          chroma_path=chroma_path,
+                          filters={"doc_type": "requirement"},
+                          where_document={"$contains": f"MATH {num}"}))
+    elif len(all_cs) > 1:
+        # multi-course comparison: broad semantic + per-course docs for each course
+        _add(retrieve(query, k=5, collection_name=collection_name,
+                      chroma_path=chroma_path))
+        for num in all_cs:
+            course_num = f"CS {num}"
+            course_num_nospace = f"CS{num}"
+            _add(retrieve(query, k=4, collection_name=collection_name,
+                          chroma_path=chroma_path,
+                          filters={"course_number": course_num}))
+            # RMP reviews store course as "CS3110" (no space) in review text
+            _add(retrieve(query, k=3, collection_name=collection_name,
+                          chroma_path=chroma_path,
+                          where_document={"$contains": course_num_nospace}))
+            _add(retrieve(query, k=2, collection_name=collection_name,
+                          chroma_path=chroma_path,
+                          filters={"doc_type": "requirement"},
+                          where_document={"$contains": course_num}))
+    elif all_cs:
+        course_num = f"CS {all_cs[0]}"
+        course_num_nospace = f"CS{all_cs[0]}"
+        # course-specific query: filter to that course's docs (CUReviews have course_number field)
         _add(retrieve(query, k=k, collection_name=collection_name,
                       chroma_path=chroma_path,
                       filters={"course_number": course_num}))
-        # keyword search in requirement docs for the course number
-        # catches chunks like "CS 4820 - Introduction to Analysis of Algorithms"
-        # that semantic search misses because it returns the document header instead
+        # RMP reviews store course as "CS3110" (no space) in review text
+        _add(retrieve(query, k=4, collection_name=collection_name,
+                      chroma_path=chroma_path,
+                      where_document={"$contains": course_num_nospace}))
+        # keyword-search requirement docs for this course number
         _add(retrieve(query, k=4, collection_name=collection_name,
                       chroma_path=chroma_path,
                       filters={"doc_type": "requirement"},
                       where_document={"$contains": course_num}))
     else:
+        # general query: broad semantic search + requirement docs
         _add(retrieve(query, k=k, collection_name=collection_name,
                       chroma_path=chroma_path))
         _add(retrieve(query, k=4, collection_name=collection_name,

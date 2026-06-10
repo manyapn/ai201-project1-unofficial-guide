@@ -68,4 +68,4 @@ with gr.Blocks(title="The Unofficial Cornell CS Guide") as demo:
     query_box.submit(fn=answer, inputs=query_box, outputs=[answer_box, sources_box])
 
 if __name__ == "__main__":
-    demo.launch()
+    demo.launch(share=True)

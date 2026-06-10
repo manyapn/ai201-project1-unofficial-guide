@@ -44,7 +44,7 @@ def _rmp_query(cursor=None):
           avgRating
           avgDifficulty
           numRatings
-          ratings(first: 50) {
+          ratings(first: 100) {
             edges {
               node {
                 comment
