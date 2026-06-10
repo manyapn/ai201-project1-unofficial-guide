@@ -1,3 +1,4 @@
+import re
 import chromadb
 from sentence_transformers import SentenceTransformer
 
@@ -74,3 +75,42 @@ def retrieve(query, k=5, collection_name=COLLECTION_NAME, chroma_path=CHROMA_PAT
         }
         for i, doc in enumerate(results["documents"][0])
     ]
+
+
+def smart_retrieve(query, k=7, collection_name=COLLECTION_NAME, chroma_path=CHROMA_PATH):
+    """Retrieval that detects course numbers and mixes in requirement docs.
+
+    When the query names a specific course (e.g. 'CS 3110'), it filters
+    retrieval to that course's documents so reviews from other courses don't
+    crowd out the answer. It always appends a requirement-doc pass so
+    policy questions (required courses, practicum lists) surface correctly.
+    Results are deduplicated by text so the same chunk from multiple semesters
+    only appears once.
+    """
+    match = re.search(r'\bCS\s*(\d{4})\b', query, re.IGNORECASE)
+
+    seen = set()
+    chunks = []
+
+    def _add(new_chunks):
+        for c in new_chunks:
+            if c["text"] not in seen:
+                seen.add(c["text"])
+                chunks.append(c)
+
+    if match:
+        course_num = f"CS {match.group(1)}"
+        _add(retrieve(query, k=k, collection_name=collection_name,
+                      chroma_path=chroma_path,
+                      filters={"course_number": course_num}))
+        _add(retrieve(query, k=4, collection_name=collection_name,
+                      chroma_path=chroma_path,
+                      filters={"doc_type": "requirement"}))
+    else:
+        _add(retrieve(query, k=k, collection_name=collection_name,
+                      chroma_path=chroma_path))
+        _add(retrieve(query, k=4, collection_name=collection_name,
+                      chroma_path=chroma_path,
+                      filters={"doc_type": "requirement"}))
+
+    return chunks

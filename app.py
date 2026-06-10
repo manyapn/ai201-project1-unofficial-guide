@@ -1,5 +1,5 @@
 import gradio as gr
-from pipeline.embed import retrieve
+from pipeline.embed import smart_retrieve
 from pipeline.generate import generate
 
 CHROMA_PATH = "chroma_db"
@@ -9,7 +9,7 @@ def answer(query):
     if not query or not query.strip():
         return "Please enter a question.", ""
 
-    chunks = retrieve(query, k=5, chroma_path=CHROMA_PATH)
+    chunks = smart_retrieve(query, k=7, chroma_path=CHROMA_PATH)
     if not chunks:
         return "No relevant information found in the database. Try running build_db.py first.", ""
 

@@ -57,11 +57,11 @@ Cornell CS degree planning for students in the A&S (BA) and Engineering (BS) tra
 
 | # | Question | Expected answer | System response (summarized) | Retrieval quality | Response accuracy |
 |---|----------|-----------------|------------------------------|-------------------|-------------------|
-| 1 | What grades do I need to affiliate with CS as an Engineering student? | C (not C-) in CS 2110 and CS 2800, average at least 2.50, C or higher in MATH 1920, critical math average at least 2.30 | "Minimum grade of C (not C-) in all completed CS, MATH, and CS-designated Critical Math Courses" | Relevant | Partially accurate (correct on grade floor, missed the specific 2.50 average requirement) |
-| 2 | What do students say about the workload in CS 3110? | Heavy problem sets, challenging final project, steep OCaml learning curve | "Not enough information — context only mentions 3110 in comparison to other courses" | Off-target | Inaccurate |
-| 3 | Is CS 4820 required for both the BA and BS? | Yes, CS 4820 is a core requirement for both tracks | "Context does not contain enough information" | Partially relevant | Inaccurate |
-| 4 | What are students' biggest complaints about CS 4820? | Fast-paced lectures, hard problem sets, assumes strong math background | "No complaints — the only retrieved review said nothing to complain about" | Off-target | Inaccurate |
-| 5 | What counts as a practicum or project course for the CS major? | CS 4740, CS 5150, CS 4321, CS 3152, CS 4411, and others; one required for both tracks | "Context only mentions CS 4997 as independent study, not a practicum list" | Off-target | Inaccurate |
+| 1 | What grades do I need to affiliate with CS as an Engineering student? | C (not C-) in CS 2110 and CS 2800, average at least 2.50, C or higher in MATH 1920, critical math average at least 2.30 | "Minimum grade of C (not C-) in all completed CS, MATH, and CS-designated Critical Math Courses at the time the affiliation application is reviewed" | Relevant | Partially accurate (correct on grade floor, missed the specific 2.50 average and MATH 1920 detail) |
+| 2 | What do students say about the workload in CS 3110? | Heavy problem sets, challenging final project, steep OCaml learning curve | "Workload is high but manageable; time-consuming assignments; assignment every two weeks with a final project; some find it overwhelming but staff is supportive" | Relevant | Accurate |
+| 3 | Is CS 4820 required for both the BA and BS? | Yes, CS 4820 is a core requirement for both tracks | "Yes for the BS (explicitly listed in retrieved chunk); model was uncertain on BA because the BA header chunk was retrieved instead of the core requirements chunk" | Partially relevant | Partially accurate (confirmed BS, uncertain on BA) |
+| 4 | What are students' biggest complaints about CS 4820? | Fast-paced lectures, hard problem sets, assumes strong math background | "Disorganized class, delayed and inconsistent grading, large time commitment (up to 10 hrs/week), content is just plain hard" | Relevant | Accurate |
+| 5 | What counts as a practicum or project course for the CS major? | CS 4121, CS 4321, CS 4411, CS 4621, CS 4701, CS 3152, CS 4152; one required for both BA and BS | "CS 3152, CS 4121, CS 4152, CS 4321, CS 4411, CS 4621; select one; CS 4090/4997/4998/4999 not allowed" | Relevant | Accurate |
 
 **Retrieval quality:** Relevant / Partially relevant / Off-target
 **Response accuracy:** Accurate / Partially accurate / Inaccurate
@@ -70,13 +70,13 @@ Cornell CS degree planning for students in the A&S (BA) and Engineering (BS) tra
 
 ## Failure Case Analysis
 
-**Question that failed:** "What do students say about the workload in CS 3110?"
+**Question that failed:** "Is CS 4820 required for both the BA and BS?"
 
-**What the system returned:** The model said there was not enough information. The retrieved chunks were CUReviews reviews, but they mentioned CS 3110 only as a comparison point in reviews for other courses ("CS 4410 was less time-consuming than CS 3110"), not as the primary subject.
+**What the system returned:** The model confirmed CS 4820 is required for the BS but said it couldn't confirm the BA requirement. It correctly retrieved a BS requirement chunk listing CS 4820 explicitly, but the BA requirement chunk it got was the document header (first 400 characters of cs_ba_requirements.txt), which just shows the degree name and credit total - not the core course list.
 
-**Root cause (tied to a specific pipeline stage):** Retrieval stage. The query "workload in CS 3110" embedded into a vector that matched reviews where 3110 appeared as a side mention rather than the main topic. CUReviews reviews are stored as full review text without a strong course-number anchor in the embedding, so semantic similarity pulled in reviews that were loosely related rather than directly about CS 3110. The 3110-specific reviews exist in the database but ranked lower than cross-course comparisons.
+**Root cause (tied to a specific pipeline stage):** Chunking and retrieval together. The BA requirement document is chunked in 400-character windows starting from the top. The first chunk is the header. The chunk that actually lists CS 4820 as required is several windows deep in the document. The semantic similarity between "Is CS 4820 required for the BA?" and the header chunk was high enough to surface it over the specific chunk that lists 4820. The BS requirement chunk happened to fall in a position where 4820 appeared closer to the start, so it was retrieved.
 
-**What you would change to fix it:** Prepend the course number to the chunk text more aggressively (e.g., "CS 3110 student review: [text]") so the embedding carries a stronger course-number signal. Alternatively, add a metadata pre-filter on `course_number == "CS 3110"` before the semantic search to narrow the candidate pool before ranking.
+**What you would change to fix it:** Add a sliding-window search within requirement doc chunks after the initial retrieval - if the query mentions a course number, scan all requirement chunks for that number explicitly using a keyword match, then pass those chunks to the LLM alongside the semantic results.
 
 ---
 
